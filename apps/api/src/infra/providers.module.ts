@@ -44,7 +44,9 @@ import { FashnTryOnProvider } from './tryon/fashn/fashn-tryon.provider';
       provide: AIStylistProvider,
       useFactory: (config: AppConfig): AIStylistProvider => {
         const log = new Logger('ProvidersModule');
-        if (config.AI_DRIVER === 'gemini' && config.GEMINI_API_KEY) {
+        const hasCredential =
+          !!config.GEMINI_API_KEY || !!config.GOOGLE_CREDENTIALS_JSON;
+        if (config.AI_DRIVER === 'gemini' && hasCredential) {
           log.log('AIStylistProvider = Gemini (real)');
           return new GeminiStylistProvider(config);
         }

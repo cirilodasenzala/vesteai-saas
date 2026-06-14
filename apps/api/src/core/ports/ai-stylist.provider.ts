@@ -64,6 +64,8 @@ export interface ConsultInput {
   memory: UserMemorySnapshot;
   /** URL da imagem (quando a consulta envolve uma foto). */
   imageUrl?: string;
+  /** Imagem em base64 (entregue pela Evolution no webhook). */
+  imageBase64?: string;
 }
 
 /** Resultado da avaliação de um look (nota + justificativa). */

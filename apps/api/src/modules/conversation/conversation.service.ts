@@ -160,12 +160,36 @@ export class ConversationService {
   ): Promise<void> {
     const userId = conversation.userId;
 
-    // Mídia no IDLE: usuário mandou uma foto -> inicia o provador pedindo
-    // o corpo (se a foto for a do corpo, o próximo passo é a roupa).
-    if (msg.type !== MsgType.TEXT || !msg.text) {
+    // Foto no IDLE:
+    //  - COM legenda/pergunta -> consultoria com visão (o stylist analisa a foto).
+    //  - SEM legenda          -> inicia o provador (pede corpo -> roupa).
+    if (msg.type === MsgType.IMAGE) {
+      if (msg.text && msg.text.trim()) {
+        const snapshot = userId
+          ? await this.memory.snapshot(userId)
+          : { language: lang };
+        const answer = await this.stylist.consultImage({
+          question: msg.text,
+          language: lang,
+          memory: snapshot,
+          imageBase64: msg.mediaBase64,
+        });
+        await this.reply(conversation.id, conversation.whatsappNumber, answer);
+        return;
+      }
       const start = this.tryonFlow.promptBody(lang);
       await this.reply(conversation.id, conversation.whatsappNumber, start.reply!);
       await this.setState(conversation.id, start.state);
+      return;
+    }
+
+    // Sem texto e sem ser imagem (áudio/location não suportados ainda).
+    if (msg.type !== MsgType.TEXT || !msg.text) {
+      const m =
+        lang === Language.EN
+          ? 'I can read text and photos 😊 Send me a message or a picture!'
+          : 'Eu entendo texto e fotos 😊 Me manda uma mensagem ou uma imagem!';
+      await this.reply(conversation.id, conversation.whatsappNumber, m);
       return;
     }
 
@@ -193,6 +217,7 @@ export class ConversationService {
           question: msg.text,
           language: lang,
           memory: snapshot,
+          imageBase64: msg.mediaBase64,
         });
         await this.reply(conversation.id, conversation.whatsappNumber, answer);
         return;

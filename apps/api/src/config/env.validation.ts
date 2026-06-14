@@ -35,10 +35,21 @@ export const envSchema = z.object({
   // Segredo opcional p/ validar o webhook (header apikey ou ?token=).
   EVOLUTION_WEBHOOK_TOKEN: z.string().optional(),
 
-  // IA Stylist (Gemini)
+  // IA Stylist (Gemini via @google/genai)
   AI_DRIVER: z.enum(['gemini', 'mock']).default('gemini'),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-1.5-pro'),
+  // true p/ Vertex AI (chave "AQ." ou Service Account); false p/ chaves "AIza".
+  GEMINI_USE_VERTEX: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+  GEMINI_FALLBACK_MODEL: z.string().default('gemini-2.5-flash'),
+  // Vertex via Service Account: JSON inteiro da SA numa env + projeto/região.
+  // (Quando presente, tem prioridade sobre GEMINI_API_KEY no modo Vertex.)
+  GOOGLE_CREDENTIALS_JSON: z.string().optional(),
+  GEMINI_VERTEX_PROJECT: z.string().optional(),
+  GEMINI_VERTEX_LOCATION: z.string().default('us-central1'),
 
   // Provador (FASHN)
   FASHN_API_KEY: z.string().optional(),

@@ -39,12 +39,17 @@ export class FashnTryOnProvider extends TryOnProvider {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model_image: input.bodyImageUrl,
-          garment_image: input.garmentImageUrl,
-          category: input.category ?? 'auto',
+          model_name: 'tryon-v1.6',
+          inputs: {
+            model_image: input.bodyImageUrl,
+            garment_image: input.garmentImageUrl,
+            category: input.category ?? 'auto',
+          },
         }),
       });
       if (!res.ok) {
+        const text = await res.text();
+        this.logger.error(`FASHN /run ${res.status}: ${text}`);
         return { status: TryOnStatus.FAILED, error: `FASHN /run ${res.status}` };
       }
       const data = (await res.json()) as { id?: string };

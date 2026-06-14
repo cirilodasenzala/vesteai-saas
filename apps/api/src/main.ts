@@ -17,6 +17,11 @@ async function bootstrap(): Promise<void> {
     bufferLogs: true,
   });
 
+  // Fotos em base64 (Evolution) chegam grandes — sobe o limite do body
+  // (mantém o rawBody do Nest, só aumenta o tamanho aceito).
+  app.useBodyParser('json', { limit: '25mb' });
+  app.useBodyParser('urlencoded', { limit: '25mb', extended: true });
+
   app.useLogger(app.get(Logger));
 
   // Painel admin estático em /admin-ui (HTML + JS que consome a API).

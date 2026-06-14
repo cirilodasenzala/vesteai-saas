@@ -60,13 +60,9 @@ export class GeminiStylistProvider extends AIStylistProvider {
 
     // (1) Service Account JSON (Vertex via OAuth2).
     if (config.GEMINI_USE_VERTEX && config.GOOGLE_CREDENTIALS_JSON) {
-      const sa = JSON.parse(config.GOOGLE_CREDENTIALS_JSON) as {
-        client_email: string;
-        private_key: string;
-        project_id?: string;
-      };
-      // private_key pode vir com \n escapados (env/CI).
-      sa.private_key = sa.private_key.replace(/\\n/g, '\n');
+      const sa = GeminiStylistProvider.parseServiceAccount(
+        config.GOOGLE_CREDENTIALS_JSON,
+      );
       const project = config.GEMINI_VERTEX_PROJECT || sa.project_id;
       if (!project) {
         throw new Error(
@@ -104,6 +100,64 @@ export class GeminiStylistProvider extends AIStylistProvider {
     // (3) Gemini Developer API com API key "AIza".
     log.log(`Gemini pronto (AI Studio, model=${config.GEMINI_MODEL}).`);
     return new GoogleGenAI({ apiKey: config.GEMINI_API_KEY });
+  }
+
+  /**
+   * Faz o parse do JSON da Service Account de forma robusta. Aceita:
+   *  - o JSON puro (com \n reais ou escapados no private_key);
+   *  - o JSON inteiro codificado em base64 (recomendado p/ env, evita o
+   *    erro "DECODER routines::unsupported" causado por \n corrompido).
+   * Normaliza o private_key e valida o formato PEM.
+   */
+  private static parseServiceAccount(raw: string): {
+    client_email: string;
+    private_key: string;
+    project_id?: string;
+  } {
+    const trimmed = raw.trim();
+    let jsonText = trimmed;
+
+    // Se não começa com "{", assume base64 do JSON.
+    if (!trimmed.startsWith('{')) {
+      try {
+        jsonText = Buffer.from(trimmed, 'base64').toString('utf8');
+      } catch {
+        throw new Error('GOOGLE_CREDENTIALS_JSON inválido (não é JSON nem base64).');
+      }
+    }
+
+    let sa: { client_email?: string; private_key?: string; project_id?: string };
+    try {
+      sa = JSON.parse(jsonText);
+    } catch (e) {
+      throw new Error(
+        `GOOGLE_CREDENTIALS_JSON: JSON inválido (${(e as Error).message}). ` +
+          'Dica: codifique o arquivo em base64 e cole o resultado.',
+      );
+    }
+
+    if (!sa.client_email || !sa.private_key) {
+      throw new Error('Service Account sem client_email/private_key.');
+    }
+
+    // Normaliza quebras de linha do private_key (\n escapado -> real).
+    let key = sa.private_key;
+    if (key.includes('\\n')) key = key.replace(/\\n/g, '\n');
+    // Garante newline final (alguns colam sem).
+    if (!key.endsWith('\n')) key += '\n';
+
+    if (!key.includes('BEGIN PRIVATE KEY')) {
+      throw new Error(
+        'private_key da Service Account fora do formato PEM esperado. ' +
+          'Cole o JSON via base64 para preservar as quebras de linha.',
+      );
+    }
+
+    return {
+      client_email: sa.client_email,
+      private_key: key,
+      project_id: sa.project_id,
+    };
   }
 
   // ---------- Núcleo de geração ----------

@@ -1,0 +1,39 @@
+# Dependências e builds (reinstalados/rebuildados no Docker)
+node_modules
+**/node_modules
+dist
+**/dist
+*.tsbuildinfo
+
+# Segredos — NUNCA enviar para a imagem
+.env
+.env.local
+.env.*.local
+apps/api/.env
+
+# Storage local e logs
+.storage
+**/.storage
+*.log
+apptmp*
+logs
+
+# Git e editores
+.git
+.gitignore
+.idea
+.vscode
+
+# MVP web legado (não faz parte do build do backend)
+index.html
+README.md
+data
+js
+styles
+vistaaí
+WppVestAI
+emprese
+
+# Planos/scripts locais
+scripts/*.ps1
+docker-compose.yml

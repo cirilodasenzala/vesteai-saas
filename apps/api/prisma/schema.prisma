@@ -1,0 +1,304 @@
+// =========================================================
+// VesteAI — Prisma schema
+// Modelo de dados completo (todas as fases). Provider postgres
+// por padrão; para dev rápido sem Docker, troque para sqlite e
+// ajuste DATABASE_URL="file:./dev.db" (arrays String[] viram Json).
+// =========================================================
+
+generator client {
+  provider = "prisma-client-js"
+  // Inclui o engine do Alpine (Docker) além do nativo (dev local).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Language {
+  PT
+  EN
+  OTHER
+}
+
+enum Style {
+  CASUAL
+  OLD_MONEY
+  STREETWEAR
+  MINIMALISTA
+  QUIET_LUXURY
+  ESPORTIVO
+  ELEGANTE
+  SOCIAL
+  FORMAL
+  LUXURY
+}
+
+enum SubStatus {
+  NONE
+  PENDING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum ConvState {
+  NEW
+  AWAITING_PAYMENT
+  ONBOARDING
+  IDLE
+  TRYON_BODY
+  TRYON_GARMENT
+  TRYON_PROCESSING
+  EVENT_DETAILS
+  CONSULTING
+  WARDROBE_INTAKE
+}
+
+enum MsgDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MsgType {
+  TEXT
+  IMAGE
+  TEMPLATE
+  AUDIO
+  LOCATION
+}
+
+enum EventType {
+  WEDDING
+  INTERVIEW
+  GOING_OUT
+  CHURCH
+  TRAVEL
+  BEACH
+  COLLEGE
+  WORK
+  GYM
+  DINNER
+  PARTY
+  GRADUATION
+  CORPORATE
+  OTHER
+}
+
+enum TryOnStatus {
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
+}
+
+model User {
+  id             String    @id @default(cuid())
+  whatsappNumber String    @unique
+  name           String? // PII — cifrado na camada de app
+  age            Int?
+  sex            Sex?
+  language       Language  @default(PT)
+  favoriteStyle  Style?
+  favoriteColors String[]  @default([])
+  heightCm       Int?
+  weightKg       Int?
+  consentLgpdAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  conversation Conversation?
+  subscription Subscription?
+  memory       Memory?
+  messages     Message[]
+  photos       Photo[]
+  looks        Look[]
+  history      History[]
+  events       Event[]
+  wardrobe     WardrobeItem[]
+  payments     Payment[]
+  tryOnJobs    TryOnJob[]
+  referralsMade Referral[]   @relation("referrer")
+  referredBy    Referral?    @relation("referred")
+}
+
+model Subscription {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status             SubStatus @default(NONE)
+  plan               String    @default("premium_monthly")
+  externalCustomerId String?
+  externalSubId      String?
+  currentPeriodEnd   DateTime?
+  canceledAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Conversation {
+  id             String    @id @default(cuid())
+  userId         String?   @unique
+  user           User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whatsappNumber String    @unique
+  state          ConvState @default(NEW)
+  context        Json      @default("{}")
+  lastMessageAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  messages Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id])
+  waMessageId    String?      @unique
+  direction      MsgDirection
+  type           MsgType
+  body           String?
+  mediaKey       String?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model Memory {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  facts     Json     @default("{}")
+  summary   String?
+  updatedAt DateTime @updatedAt
+}
+
+model Photo {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind       String // BODY | GARMENT | SELFIE | RESULT
+  storageKey String
+  meta       Json?
+  createdAt  DateTime @default(now())
+}
+
+model Look {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId       String?
+  event         Event?    @relation(fields: [eventId], references: [id])
+  description   String
+  items         Json
+  score         Float?
+  scoreReason   String?
+  resultPhotoId String?
+  createdAt     DateTime  @default(now())
+
+  history History[]
+}
+
+model Event {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      EventType
+  whenAt    DateTime?
+  place     String?
+  weather   String?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  looks Look[]
+}
+
+model TryOnJob {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bodyPhotoKey    String
+  garmentPhotoKey String
+  status          TryOnStatus @default(QUEUED)
+  providerJobId   String?
+  resultPhotoKey  String?
+  error           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model History {
+  id             String     @id @default(cuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lookId         String?
+  look           Look?      @relation(fields: [lookId], references: [id])
+  eventType      EventType?
+  triedAt        DateTime   @default(now())
+  resultPhotoKey String?
+
+  @@index([userId, triedAt])
+}
+
+model WardrobeItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String // top | bottom | shoes | outerwear | accessory
+  color     String?
+  photoKey  String?
+  attrs     Json?
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  externalId String?  @unique
+  amount     Int?
+  currency   String?
+  status     String
+  raw        Json?
+  createdAt  DateTime @default(now())
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId String
+  referrer   User     @relation("referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredId String?  @unique
+  referred   User?    @relation("referred", fields: [referredId], references: [id])
+  code       String   @unique
+  rewarded   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model AppLog {
+  id        String   @id @default(cuid())
+  level     String
+  scope     String // whatsapp | stripe | fashn | gemini | auth
+  userId    String?
+  message   String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([scope, createdAt])
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+}

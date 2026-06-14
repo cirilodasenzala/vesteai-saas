@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+apps/api/.env
+!.env.example
+
+# Logs temporários da API
+apptmp*
+
+# Prisma
+apps/api/prisma/dev.db
+apps/api/prisma/dev.db-journal
+apps/api/prisma/*.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Local storage (StorageProvider local driver)
+.storage/
+apps/api/.storage/
+
+# Claude Code (config local)
+.claude/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Docker volumes (local)
+.docker-data/
+
+# MVP web legado (não faz parte do SaaS — fora do repositório)
+/index.html
+/README.md
+/data/
+/js/
+/styles/
+/vistaaí/
+/WppVestAI/
+/emprese

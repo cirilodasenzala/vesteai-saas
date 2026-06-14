@@ -1,0 +1,25 @@
+{
+  "name": "vesteai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VesteAI — Personal Stylist Premium com IA integrado ao WhatsApp",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "api:dev": "npm run start:dev --workspace @vesteai/api",
+    "api:build": "npm run build --workspace @vesteai/api",
+    "api:start": "npm run start:prod --workspace @vesteai/api",
+    "api:test": "npm run test --workspace @vesteai/api",
+    "prisma:generate": "npm run prisma:generate --workspace @vesteai/api",
+    "prisma:migrate": "npm run prisma:migrate --workspace @vesteai/api",
+    "db:seed": "npm run db:seed --workspace @vesteai/api",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

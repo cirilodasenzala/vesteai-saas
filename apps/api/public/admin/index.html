@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VesteAI — Painel Admin</title>
+  <style>
+    :root { --bg:#0e0e12; --card:#181821; --ink:#f3f3f5; --muted:#9a9aa8; --gold:#c9a24b; --line:#26263200; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+    header { padding:20px 28px; border-bottom:1px solid #26263a; display:flex; align-items:center; justify-content:space-between; }
+    h1 { font-size:20px; margin:0; letter-spacing:.5px; }
+    h1 span { color:var(--gold); }
+    .wrap { padding:28px; max-width:1100px; margin:0 auto; }
+    .login { max-width:360px; margin:80px auto; background:var(--card); padding:28px; border-radius:14px; }
+    .login h2 { margin-top:0; }
+    input { width:100%; padding:11px 12px; margin:8px 0; border-radius:9px; border:1px solid #2c2c3c; background:#101018; color:var(--ink); }
+    button { width:100%; padding:11px; border:0; border-radius:9px; background:var(--gold); color:#1a1300; font-weight:700; cursor:pointer; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; }
+    .card { background:var(--card); border-radius:14px; padding:18px; }
+    .card .k { color:var(--muted); font-size:13px; }
+    .card .v { font-size:26px; font-weight:700; margin-top:6px; }
+    .section { margin-top:28px; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:9px 10px; border-bottom:1px solid #23232f; }
+    th { color:var(--muted); font-weight:600; }
+    .hidden { display:none; }
+    .err { color:#ff7a7a; font-size:13px; min-height:18px; }
+    .logout { background:transparent; color:var(--muted); width:auto; padding:6px 12px; border:1px solid #2c2c3c; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Veste<span>AI</span> · Admin</h1>
+    <button id="logout" class="logout hidden" onclick="logout()">Sair</button>
+  </header>
+
+  <!-- Login -->
+  <div id="loginView" class="login">
+    <h2>Entrar</h2>
+    <input id="email" type="email" placeholder="E-mail" value="admin@vesteai.local" />
+    <input id="password" type="password" placeholder="Senha" />
+    <button onclick="login()">Acessar painel</button>
+    <p id="loginErr" class="err"></p>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashView" class="wrap hidden">
+    <div class="grid" id="cards"></div>
+
+    <div class="section">
+      <h3>Conversas recentes</h3>
+      <table id="convTable"><thead><tr>
+        <th>Número</th><th>Estado</th><th>Mensagens</th><th>Última</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="section">
+      <h3>Usuários recentes</h3>
+      <table id="userTable"><thead><tr>
+        <th>Número</th><th>Estilo</th><th>Idioma</th><th>Assinatura</th><th>Criado</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <script>
+    const API = location.origin;
+    let token = localStorage.getItem('vesteai_admin_token');
+
+    async function api(path) {
+      const res = await fetch(API + path, { headers: { Authorization: 'Bearer ' + token } });
+      if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+      return res.json();
+    }
+
+    async function login() {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const err = document.getElementById('loginErr');
+      err.textContent = '';
+      try {
+        const res = await fetch(API + '/admin/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!res.ok) { err.textContent = 'Credenciais inválidas.'; return; }
+        const data = await res.json();
+        token = data.accessToken;
+        localStorage.setItem('vesteai_admin_token', token);
+        showDash();
+      } catch { err.textContent = 'Falha ao conectar.'; }
+    }
+
+    function logout() {
+      token = null; localStorage.removeItem('vesteai_admin_token');
+      document.getElementById('loginView').classList.remove('hidden');
+      document.getElementById('dashView').classList.add('hidden');
+      document.getElementById('logout').classList.add('hidden');
+    }
+
+    async function showDash() {
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('dashView').classList.remove('hidden');
+      document.getElementById('logout').classList.remove('hidden');
+
+      const o = await api('/admin/overview');
+      const cards = [
+        ['Usuários', o.users],
+        ['Assinaturas ativas', o.subscriptions.active],
+        ['Receita', o.revenue.formatted],
+        ['Imagens geradas', o.engagement.generatedImages],
+        ['Mensagens', o.engagement.messages],
+        ['Eventos', o.engagement.events],
+        ['Provador OK', o.tryOn.done],
+        ['Cancelamentos', o.subscriptions.canceled],
+      ];
+      document.getElementById('cards').innerHTML = cards.map(
+        ([k, v]) => `<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`
+      ).join('');
+
+      const convs = await api('/admin/conversations');
+      document.querySelector('#convTable tbody').innerHTML = convs.map(c =>
+        `<tr><td>${c.whatsappNumber}</td><td>${c.state}</td><td>${c._count.messages}</td><td>${new Date(c.lastMessageAt).toLocaleString('pt-BR')}</td></tr>`
+      ).join('');
+
+      const users = await api('/admin/users');
+      document.querySelector('#userTable tbody').innerHTML = users.items.map(u =>
+        `<tr><td>${u.whatsappNumber}</td><td>${u.favoriteStyle || '-'}</td><td>${u.language}</td><td>${u.subscription?.status || 'NONE'}</td><td>${new Date(u.createdAt).toLocaleDateString('pt-BR')}</td></tr>`
+      ).join('');
+    }
+
+    if (token) showDash().catch(() => logout());
+  </script>
+</body>
+</html>

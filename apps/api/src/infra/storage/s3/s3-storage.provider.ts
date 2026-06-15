@@ -19,11 +19,17 @@ export class S3StorageProvider extends StorageProvider {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly publicUrl: string;
+  private readonly publicIncludesBucket: boolean;
 
   constructor(@Inject('APP_CONFIG') private readonly config: AppConfig) {
     super();
     this.bucket = config.S3_BUCKET;
     this.publicUrl = config.S3_PUBLIC_URL.replace(/\/$/, '');
+    const endpoint = (config.S3_ENDPOINT || '').replace(/\/$/, '');
+    // Path-style (com bucket no caminho) só quando a URL pública é o próprio
+    // endpoint da API (MinIO/AWS). Domínio público dedicado (R2 pub-xxx.r2.dev
+    // ou CDN próprio) já aponta para o bucket -> não repetir o bucket no path.
+    this.publicIncludesBucket = this.publicUrl === endpoint;
     this.client = new S3Client({
       region: config.S3_REGION,
       endpoint: config.S3_ENDPOINT,
@@ -44,7 +50,10 @@ export class S3StorageProvider extends StorageProvider {
         ContentType: contentType,
       }),
     );
-    return { key, url: `${this.publicUrl}/${this.bucket}/${key}` };
+    const url = this.publicIncludesBucket
+      ? `${this.publicUrl}/${this.bucket}/${key}`
+      : `${this.publicUrl}/${key}`;
+    return { key, url };
   }
 
   async getUrl(key: string, ttlSec = 3600): Promise<string> {

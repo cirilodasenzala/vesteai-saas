@@ -50,6 +50,24 @@ export class WhatsappSender {
   }
 
   /**
+   * Envia uma imagem a partir dos bytes (base64) — não depende de URL pública
+   * acessível pela Evolution. Mais robusto para entregar o resultado do provador.
+   */
+  async sendImageBytes(
+    to: string,
+    bytes: Buffer,
+    caption?: string,
+  ): Promise<void> {
+    await this.post('sendMedia', {
+      number: this.normalize(to),
+      mediatype: 'image',
+      media: bytes.toString('base64'),
+      fileName: 'provador.jpg',
+      caption,
+    });
+  }
+
+  /**
    * Decodifica a mídia recebida (base64 do webhook) para Buffer.
    * Retorna null se não houver base64 (modo dev/simulado usa placeholder).
    */

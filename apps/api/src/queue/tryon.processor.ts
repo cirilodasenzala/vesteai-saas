@@ -67,11 +67,21 @@ export class TryOnProcessor {
         }),
       ]);
 
-      await this.sender.sendImage(
-        data.whatsappNumber,
-        stored.url,
-        'Aqui está o seu provador ✨',
-      );
+      // Entrega o resultado: por bytes (base64) quando temos os bytes — não
+      // depende de URL pública acessível pela Evolution; senão, por URL.
+      if (bytes) {
+        await this.sender.sendImageBytes(
+          data.whatsappNumber,
+          bytes,
+          'Aqui está o seu provador ✨',
+        );
+      } else {
+        await this.sender.sendImage(
+          data.whatsappNumber,
+          result.imageUrl!,
+          'Aqui está o seu provador ✨',
+        );
+      }
       await this.ask(data, 'Quer experimentar outra peça? 👗 (sim/não)');
       // Pronto para a próxima peça.
       await this.prisma.conversation.update({
